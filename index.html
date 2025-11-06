@@ -1,0 +1,947 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Globo Terrestre - Densidade Industrial</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: radial-gradient(ellipse at bottom, #1B2735 0%, #090A0F 100%);
+            color: #fff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+            height: 100vh;
+        }
+        
+        #container {
+            position: relative;
+            width: 100%;
+            height: 100vh;
+        }
+        
+        #canvas-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        
+        .ui-panel {
+            position: absolute;
+            background: rgba(10, 20, 30, 0.85);
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(100, 150, 255, 0.2);
+            border-radius: 15px;
+            padding: 20px;
+            z-index: 10;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+        
+        #infoPanel {
+            top: 20px;
+            left: 20px;
+            width: 350px;
+            display: none;
+            transition: all 0.3s ease;
+        }
+        
+        #controls {
+            bottom: 20px;
+            left: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .legend {
+            bottom: 20px;
+            right: 20px;
+            width: 250px;
+        }
+        
+        .title {
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            text-align: center;
+            padding: 15px 40px;
+        }
+        
+        h1, h2, h3 {
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+        
+        .title h1 {
+            font-size: 2.2rem;
+            background: linear-gradient(45deg, #4facfe, #00f2fe, #6a11cb);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 5px;
+        }
+        
+        .title p {
+            opacity: 0.8;
+            font-size: 0.95rem;
+        }
+        
+        button {
+            background: linear-gradient(135deg, #2c3e50, #4a6491);
+            color: white;
+            border: none;
+            padding: 12px 18px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        
+        button:hover {
+            background: linear-gradient(135deg, #34495e, #5a7bb5);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .legend-color {
+            width: 22px;
+            height: 22px;
+            margin-right: 12px;
+            border-radius: 5px;
+            box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3);
+        }
+        
+        .density-bar {
+            height: 8px;
+            border-radius: 4px;
+            margin: 15px 0;
+            background: linear-gradient(to right, #ff6b6b, #ffa726, #ffee58, #9ccc65, #26c6da);
+        }
+        
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            z-index: 100;
+            background: rgba(10, 20, 30, 0.9);
+            padding: 40px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(100, 150, 255, 0.2);
+        }
+        
+        .progress-container {
+            width: 300px;
+            height: 12px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            margin: 20px auto;
+            overflow: hidden;
+        }
+        
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(45deg, #4facfe, #00f2fe);
+            width: 0%;
+            transition: width 0.5s ease;
+            border-radius: 6px;
+        }
+        
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 0.6; }
+            50% { opacity: 1; }
+            100% { opacity: 0.6; }
+        }
+        
+        .stars {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+        }
+        
+        .star {
+            position: absolute;
+            background: white;
+            border-radius: 50%;
+        }
+        
+        .country-highlight {
+            font-weight: 600;
+            color: #4facfe;
+        }
+        
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 8px 0;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .info-label {
+            font-weight: 500;
+            opacity: 0.8;
+        }
+        
+        .info-value {
+            font-weight: 600;
+        }
+        
+        .marker-options {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 10px;
+        }
+        
+        .marker-option {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .marker-option input {
+            margin: 0;
+        }
+        
+        .globe-info {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            text-align: center;
+            opacity: 0.7;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="stars" id="stars"></div>
+    
+    <div id="container">
+        <div id="canvas-container"></div>
+        
+        <div class="ui-panel title">
+            <h1>Globo Terrestre Interativo</h1>
+            <p>Visualização da Densidade Industrial Global</p>
+        </div>
+        
+        <div class="ui-panel" id="infoPanel">
+            <h3 id="countryName">País</h3>
+            <div id="densityIndicator"></div>
+            <div class="info-row">
+                <span class="info-label">Densidade:</span>
+                <span class="info-value" id="densityValue">Média</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Setores Principais:</span>
+                <span class="info-value" id="mainSectors">-</span>
+            </div>
+            <p id="countryInfo" style="margin-top: 15px; line-height: 1.5;"></p>
+        </div>
+        
+        <div class="ui-panel" id="controls">
+            <h3>Controles</h3>
+            <button id="autoRotate">
+                <span>⏸️</span> Parar Rotação
+            </button>
+            <button id="resetView">
+                <span>🔄</span> Resetar Vista
+            </button>
+            <button id="toggleMarkers">
+                <span>🔍</span> Ocultar Marcadores
+            </button>
+            <button id="toggleAtmosphere">
+                <span>🌎</span> Atmosfera: On
+            </button>
+            
+            <div class="marker-options">
+                <div class="marker-option">
+                    <input type="radio" id="markerType1" name="markerType" value="spikes" checked>
+                    <label for="markerType1">Marcadores com Espinhos</label>
+                </div>
+                <div class="marker-option">
+                    <input type="radio" id="markerType2" name="markerType" value="beams">
+                    <label for="markerType2">Marcadores com Feixes</label>
+                </div>
+                <div class="marker-option">
+                    <input type="radio" id="markerType3" name="markerType" value="pins">
+                    <label for="markerType3">Marcadores com Pinos</label>
+                </div>
+            </div>
+        </div>
+        
+        <div class="ui-panel legend">
+            <h3>Densidade Industrial</h3>
+            <div class="density-bar"></div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #ff6b6b;"></div>
+                <span>Muito Baixa</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #ffa726;"></div>
+                <span>Baixa</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #ffee58;"></div>
+                <span>Média</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #9ccc65;"></div>
+                <span>Alta</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #26c6da;"></div>
+                <span>Muito Alta</span>
+            </div>
+        </div>
+        
+        <div class="loading" id="loading">
+            <h3 class="pulse">Carregando Globo Terrestre</h3>
+            <div class="progress-container">
+                <div class="progress-bar" id="progress"></div>
+            </div>
+            <p>Baixando texturas de alta resolução...</p>
+        </div>
+        
+        <div class="globe-info">
+            Globo com textura real da NASA • Use o mouse para navegar
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.min.js"></script>
+    <script>
+        // Dados expandidos para densidade industrial por país
+        const industrialData = {
+            "BR": { 
+                name: "Brasil", 
+                density: 3, 
+                sectors: "Automotivo, Aeronáutica, Commodities",
+                info: "Setor industrial diversificado com foco em automóveis, aeronáutica e commodities. O Brasil possui um parque industrial em desenvolvimento, com destaque para a região sudeste. A Embraer é uma das maiores fabricantes de aeronaves do mundo."
+            },
+            "US": { 
+                name: "Estados Unidos", 
+                density: 5, 
+                sectors: "Tecnologia, Aeroespacial, Manufatura Avançada",
+                info: "Líder mundial em tecnologia, manufatura avançada e indústria aeroespacial. Possui centros industriais em Silicon Valley, Detroit (automotivo) e Texas (energia). Empresas como Apple, Boeing e Tesla são referências globais."
+            },
+            "CN": { 
+                name: "China", 
+                density: 5, 
+                sectors: "Eletrônicos, Têxteis, Maquinário",
+                info: "Maior produtor industrial do mundo, com forte presença em eletrônicos, têxteis e maquinário. Regiões como Guangdong e Zhejiang são polos industriais importantes. Conhecida como 'a fábrica do mundo'."
+            },
+            "DE": { 
+                name: "Alemanha", 
+                density: 5, 
+                sectors: "Engenharia, Automotivo, Química",
+                info: "Potência industrial europeia, especializada em engenharia, automóveis e produtos químicos. Conhecida por sua 'Indústria 4.0' e alta automação. Marcas como Volkswagen, Siemens e Bayer são líderes globais."
+            },
+            "JP": { 
+                name: "Japão", 
+                density: 4, 
+                sectors: "Tecnologia, Robótica, Automotivo",
+                info: "Tecnologia avançada, eletrônicos, robótica e indústria automotiva. Empresas como Toyota, Sony e Panasonic são líderes globais. Conhecido por sua excelência em manufacturing e controle de qualidade."
+            },
+            "IN": { 
+                name: "Índia", 
+                density: 3, 
+                sectors: "Tecnologia, Farmacêutica, Automotivo",
+                info: "Crescimento industrial acelerado em tecnologia, farmacêutica e automóveis. Bangalore é conhecida como o 'Vale do Silício indiano'. Forte presença na indústria de software e serviços de TI."
+            },
+            "RU": { 
+                name: "Rússia", 
+                density: 3, 
+                sectors: "Energia, Armamentos, Recursos Naturais",
+                info: "Indústria pesada, energia, armamentos e recursos naturais. A Rússia é um dos maiores exportadores de gás natural e petróleo do mundo. Forte tradição em engenharia pesada e aerospace."
+            },
+            "KR": { 
+                name: "Coreia do Sul", 
+                density: 4, 
+                sectors: "Eletrônicos, Construção Naval, Automotivo",
+                info: "Eletrônicos, construção naval e indústria automotiva de ponta. Empresas como Samsung, Hyundai e LG são marcas globais. Líder em innovation e design de produtos eletrônicos."
+            },
+            "FR": { 
+                name: "França", 
+                density: 4, 
+                sectors: "Aeronáutica, Energia Nuclear, Luxo",
+                info: "Aeronáutica, energia nuclear, luxo e produtos farmacêuticos. A França é sede da Airbus e de diversas marcas de luxo mundialmente conhecidas."
+            },
+            "GB": { 
+                name: "Reino Unido", 
+                density: 4, 
+                sectors: "Farmacêutica, Aeroespacial, Financeiro",
+                info: "Setor financeiro forte com indústria farmacêutica, aeroespacial e criativa. Londres é um dos principais centros financeiros globais."
+            },
+            "CA": { 
+                name: "Canadá", 
+                density: 3, 
+                sectors: "Recursos Naturais, Energia, Tecnologia",
+                info: "Recursos naturais, energia, automóveis e tecnologia. O Canadá possui vastas reservas naturais e uma indústria de tecnologia em crescimento."
+            },
+            "AU": { 
+                name: "Austrália", 
+                density: 2, 
+                sectors: "Mineração, Recursos Naturais, Agricultura",
+                info: "Mineração, recursos naturais e agricultura. A Austrália é um dos maiores exportadores de minérios do mundo."
+            },
+            "MX": { 
+                name: "México", 
+                density: 3, 
+                sectors: "Automotivo, Eletrônicos, Manufatura",
+                info: "Setor industrial em crescimento com forte presença na indústria automotiva e de eletrônicos. Importante centro de manufatura para a América do Norte."
+            },
+            "IT": { 
+                name: "Itália", 
+                density: 4, 
+                sectors: "Moda, Automotivo, Maquinário",
+                info: "Indústria diversificada com destaque para moda, automóveis e maquinário. Conhecida por seu design inovador e marcas de luxo."
+            },
+            "ES": { 
+                name: "Espanha", 
+                density: 3, 
+                sectors: "Automotivo, Turismo, Energia Renovável",
+                info: "Setor industrial com foco em automóveis, turismo e energias renováveis. Líder europeu em energia eólica e solar."
+            }
+        };
+
+        // Cores baseadas na densidade industrial
+        const densityColors = {
+            1: 0xff6b6b, // Muito Baixa
+            2: 0xffa726, // Baixa
+            3: 0xffee58, // Média
+            4: 0x9ccc65, // Alta
+            5: 0x26c6da  // Muito Alta
+        };
+
+        // Variáveis globais
+        let scene, camera, renderer, globe, controls;
+        let autoRotate = true;
+        let raycaster, mouse;
+        let markersVisible = true;
+        let atmosphereVisible = true;
+        let countryMarkers = [];
+        let pulseObjects = [];
+        let atmosphereGlow;
+        let currentMarkerType = 'spikes';
+
+        // Criar estrelas de fundo
+        function createStars() {
+            const starsContainer = document.getElementById('stars');
+            for (let i = 0; i < 300; i++) {
+                const star = document.createElement('div');
+                star.className = 'star';
+                const size = Math.random() * 3;
+                star.style.width = size + 'px';
+                star.style.height = size + 'px';
+                star.style.left = Math.random() * 100 + '%';
+                star.style.top = Math.random() * 100 + '%';
+                star.style.opacity = Math.random() * 0.8 + 0.2;
+                star.style.animation = `twinkle ${Math.random() * 5 + 3}s infinite alternate`;
+                starsContainer.appendChild(star);
+            }
+            
+            // Adicionar estilo de animação para as estrelas
+            const style = document.createElement('style');
+            style.textContent = `
+                @keyframes twinkle {
+                    0% { opacity: 0.2; }
+                    100% { opacity: 1; }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+
+        // Inicialização
+        function init() {
+            createStars();
+            
+            // Cena
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x000000);
+            scene.fog = new THREE.Fog(0x000000, 350, 500);
+            
+            // Câmera
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 0, 250);
+            
+            // Renderizador
+            renderer = new THREE.WebGLRenderer({ 
+                antialias: true, 
+                alpha: true,
+                powerPreference: "high-performance"
+            });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            document.getElementById('canvas-container').appendChild(renderer.domElement);
+            
+            // Controles de órbita
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.minDistance = 150;
+            controls.maxDistance = 400;
+            controls.autoRotate = autoRotate;
+            controls.autoRotateSpeed = 0.5;
+            
+            // Sistema de iluminação avançado
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+            scene.add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+            directionalLight.position.set(10, 5, 5);
+            directionalLight.castShadow = true;
+            directionalLight.shadow.mapSize.width = 2048;
+            directionalLight.shadow.mapSize.height = 2048;
+            scene.add(directionalLight);
+            
+            const hemisphereLight = new THREE.HemisphereLight(0x4477ff, 0x224433, 0.3);
+            scene.add(hemisphereLight);
+            
+            // Criar o globo com textura realista
+            createRealisticGlobe();
+            
+            // Raycaster para interação
+            raycaster = new THREE.Raycaster();
+            mouse = new THREE.Vector2();
+            
+            // Event listeners
+            window.addEventListener('resize', onWindowResize);
+            renderer.domElement.addEventListener('mousemove', onMouseMove);
+            renderer.domElement.addEventListener('click', onMouseClick);
+            document.getElementById('autoRotate').addEventListener('click', toggleAutoRotate);
+            document.getElementById('resetView').addEventListener('click', resetView);
+            document.getElementById('toggleMarkers').addEventListener('click', toggleMarkers);
+            document.getElementById('toggleAtmosphere').addEventListener('click', toggleAtmosphere);
+            
+            // Event listeners para tipos de marcadores
+            document.querySelectorAll('input[name="markerType"]').forEach(radio => {
+                radio.addEventListener('change', function() {
+                    currentMarkerType = this.value;
+                    updateMarkers();
+                });
+            });
+            
+            // Simular carregamento
+            simulateLoading();
+        }
+        
+        function simulateLoading() {
+            let progress = 0;
+            const progressBar = document.getElementById('progress');
+            const loadingElem = document.getElementById('loading');
+            
+            const interval = setInterval(() => {
+                progress += Math.random() * 15;
+                if (progress >= 100) {
+                    progress = 100;
+                    clearInterval(interval);
+                    setTimeout(() => {
+                        loadingElem.style.opacity = '0';
+                        setTimeout(() => {
+                            loadingElem.style.display = 'none';
+                        }, 500);
+                        animate();
+                    }, 800);
+                }
+                progressBar.style.width = progress + '%';
+            }, 200);
+        }
+        
+        function createRealisticGlobe() {
+            const textureLoader = new THREE.TextureLoader();
+            
+            // Textura real da Terra da NASA - Blue Marble
+            const earthTexture = textureLoader.load('https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Blue_Marble_2002.png/1024px-Blue_Marble_2002.png');
+            
+            // Mapa de relevo (bump map) para dar profundidade
+            const earthBumpMap = textureLoader.load('https://cdn.rawgit.com/mrdoob/three.js/dev/examples/textures/planets/earth_normal_2048.jpg');
+            
+            // Mapa especular para realçar oceanos
+            const earthSpecularMap = textureLoader.load('https://cdn.rawgit.com/mrdoob/three.js/dev/examples/textures/planets/earth_specular_2048.jpg');
+            
+            // Criar material da Terra com realismo avançado
+            const earthMaterial = new THREE.MeshPhongMaterial({
+                map: earthTexture,
+                bumpMap: earthBumpMap,
+                bumpScale: 0.05,
+                specularMap: earthSpecularMap,
+                specular: new THREE.Color(0x333333),
+                shininess: 15,
+                transparent: false,
+            });
+            
+            // Geometria da Terra com mais detalhes
+            const earthGeometry = new THREE.SphereGeometry(100, 128, 128);
+            globe = new THREE.Mesh(earthGeometry, earthMaterial);
+            globe.castShadow = true;
+            globe.receiveShadow = true;
+            scene.add(globe);
+            
+            // Adicionar nuvens realistas
+            const cloudsTexture = textureLoader.load('https://cdn.rawgit.com/mrdoob/three.js/dev/examples/textures/planets/earth_clouds_1024.png');
+            const cloudsGeometry = new THREE.SphereGeometry(101.5, 128, 128);
+            const cloudsMaterial = new THREE.MeshPhongMaterial({
+                map: cloudsTexture,
+                transparent: true,
+                opacity: 0.4,
+                depthWrite: false
+            });
+            
+            const clouds = new THREE.Mesh(cloudsGeometry, cloudsMaterial);
+            scene.add(clouds);
+            
+            // Efeito de atmosfera com shader personalizado
+            const atmosphereGeometry = new THREE.SphereGeometry(103, 128, 128);
+            const atmosphereMaterial = new THREE.ShaderMaterial({
+                uniforms: {
+                    glowColor: { value: new THREE.Color(0x00aaff) },
+                    viewVector: { value: camera.position }
+                },
+                vertexShader: `
+                    uniform vec3 viewVector;
+                    varying float intensity;
+                    void main() {
+                        vec3 vNormal = normalize(normalMatrix * normal);
+                        vec3 vNormel = normalize(normalMatrix * viewVector);
+                        intensity = pow(0.7 - dot(vNormal, vNormel), 2.0);
+                        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                    }
+                `,
+                fragmentShader: `
+                    uniform vec3 glowColor;
+                    varying float intensity;
+                    void main() {
+                        vec3 glow = glowColor * intensity;
+                        gl_FragColor = vec4(glow, intensity * 0.4);
+                    }
+                `,
+                side: THREE.BackSide,
+                blending: THREE.AdditiveBlending,
+                transparent: true
+            });
+            
+            atmosphereGlow = new THREE.Mesh(atmosphereGeometry, atmosphereMaterial);
+            scene.add(atmosphereGlow);
+            
+            // Adicionar marcadores de países
+            addCountryMarkers();
+        }
+        
+        function addCountryMarkers() {
+            // Limpar marcadores existentes
+            countryMarkers.forEach(marker => scene.remove(marker));
+            pulseObjects.forEach(obj => scene.remove(obj));
+            countryMarkers = [];
+            pulseObjects = [];
+            
+            // Posições CORRETAS dos países (coordenadas geográficas precisas)
+            const countryPositions = {
+                "BR": { lat: -15, lon: -55 },    // Brasil - posição central
+                "US": { lat: 39, lon: -98 },     // Estados Unidos - centro continental
+                "CN": { lat: 35, lon: 103 },     // China - centro do país
+                "DE": { lat: 51, lon: 10 },      // Alemanha - centro
+                "JP": { lat: 36, lon: 138 },     // Japão - centro
+                "IN": { lat: 21, lon: 78 },      // Índia - centro
+                "RU": { lat: 61, lon: 105 },     // Rússia - centro da parte europeia
+                "KR": { lat: 36, lon: 128 },     // Coreia do Sul - centro
+                "FR": { lat: 46, lon: 2 },       // França - centro
+                "GB": { lat: 54, lon: -2 },      // Reino Unido - centro
+                "CA": { lat: 62, lon: -110 },    // Canadá - centro
+                "AU": { lat: -27, lon: 133 },    // Austrália - centro
+                "MX": { lat: 23, lon: -102 },    // México - centro
+                "IT": { lat: 42, lon: 12 },      // Itália - centro
+                "ES": { lat: 40, lon: -4 }       // Espanha - centro
+            };
+            
+            // Adicionar marcadores para cada país
+            for (const code in countryPositions) {
+                if (industrialData[code]) {
+                    const pos = countryPositions[code];
+                    const density = industrialData[code].density;
+                    const color = densityColors[density];
+                    
+                    // Converter coordenadas geográficas para posição 3D CORRETAMENTE
+                    const lat = pos.lat * Math.PI / 180;
+                    const lon = -pos.lon * Math.PI / 180; // Negativo para longitude oeste
+                    
+                    const radius = 101; // Ligeiramente acima da superfície
+                    
+                    const x = radius * Math.cos(lat) * Math.cos(lon);
+                    const y = radius * Math.sin(lat);
+                    const z = radius * Math.cos(lat) * Math.sin(lon);
+                    
+                    // Criar marcador baseado no tipo selecionado
+                    createMarkerByType(code, color, density, x, y, z);
+                }
+            }
+        }
+        
+        function createMarkerByType(code, color, density, x, y, z) {
+            const countryData = industrialData[code];
+            
+            if (currentMarkerType === 'spikes') {
+                // Criar espinhos verticais
+                const spikeHeight = 5 + density * 3;
+                const spikeGeometry = new THREE.ConeGeometry(1.5, spikeHeight, 8);
+                const spikeMaterial = new THREE.MeshPhongMaterial({ 
+                    color: color,
+                    emissive: color,
+                    emissiveIntensity: 0.5
+                });
+                
+                const spike = new THREE.Mesh(spikeGeometry, spikeMaterial);
+                spike.position.set(x, y, z);
+                
+                // Orientar o espinho para fora do globo (normal à superfície)
+                const normal = new THREE.Vector3(x, y, z).normalize();
+                spike.lookAt(normal.multiplyScalar(2).add(spike.position));
+                
+                spike.userData = {
+                    countryCode: code,
+                    countryName: countryData.name,
+                    density: density,
+                    sectors: countryData.sectors,
+                    info: countryData.info
+                };
+                
+                scene.add(spike);
+                countryMarkers.push(spike);
+                
+            } else if (currentMarkerType === 'beams') {
+                // Criar feixes de luz
+                const beamHeight = 8 + density * 2;
+                const beamGeometry = new THREE.CylinderGeometry(0.5, 1.5, beamHeight, 8);
+                const beamMaterial = new THREE.MeshPhongMaterial({ 
+                    color: color,
+                    emissive: color,
+                    emissiveIntensity: 0.7,
+                    transparent: true,
+                    opacity: 0.8
+                });
+                
+                const beam = new THREE.Mesh(beamGeometry, beamMaterial);
+                beam.position.set(x, y, z);
+                
+                // Orientar o feixe para fora do globo
+                const normal = new THREE.Vector3(x, y, z).normalize();
+                beam.lookAt(normal.multiplyScalar(2).add(beam.position));
+                
+                beam.userData = {
+                    countryCode: code,
+                    countryName: countryData.name,
+                    density: density,
+                    sectors: countryData.sectors,
+                    info: countryData.info
+                };
+                
+                scene.add(beam);
+                countryMarkers.push(beam);
+                
+                // Adicionar efeito de pulso
+                const pulseGeometry = new THREE.RingGeometry(2, 3, 32);
+                const pulseMaterial = new THREE.MeshBasicMaterial({
+                    color: color,
+                    transparent: true,
+                    opacity: 0.6,
+                    side: THREE.DoubleSide
+                });
+                
+                const pulse = new THREE.Mesh(pulseGeometry, pulseMaterial);
+                pulse.position.set(x, y, z);
+                
+                // Orientar o anel paralelo à superfície
+                pulse.lookAt(new THREE.Vector3(0, 0, 0));
+                
+                pulse.userData = { pulseSpeed: 0.02 };
+                scene.add(pulse);
+                pulseObjects.push(pulse);
+                
+            } else if (currentMarkerType === 'pins') {
+                // Criar pinos de mapa
+                const pinGroup = new THREE.Group();
+                
+                // Base do pino (esfera)
+                const pinBaseGeometry = new THREE.SphereGeometry(2, 16, 16);
+                const pinBaseMaterial = new THREE.MeshPhongMaterial({ 
+                    color: color,
+                    emissive: color,
+                    emissiveIntensity: 0.4
+                });
+                
+                const pinBase = new THREE.Mesh(pinBaseGeometry, pinBaseMaterial);
+                pinGroup.add(pinBase);
+                
+                // Haste do pino
+                const pinStemHeight = 6 + density * 2;
+                const pinStemGeometry = new THREE.CylinderGeometry(0.5, 0.5, pinStemHeight, 8);
+                const pinStemMaterial = new THREE.MeshPhongMaterial({ 
+                    color: color,
+                    emissive: color,
+                    emissiveIntensity: 0.3
+                });
+                
+                const pinStem = new THREE.Mesh(pinStemGeometry, pinStemMaterial);
+                pinStem.position.y = pinStemHeight / 2;
+                pinGroup.add(pinStem);
+                
+                pinGroup.position.set(x, y, z);
+                
+                // Orientar o pino para fora do globo
+                const normal = new THREE.Vector3(x, y, z).normalize();
+                pinGroup.lookAt(normal.multiplyScalar(2).add(pinGroup.position));
+                
+                pinGroup.userData = {
+                    countryCode: code,
+                    countryName: countryData.name,
+                    density: density,
+                    sectors: countryData.sectors,
+                    info: countryData.info
+                };
+                
+                scene.add(pinGroup);
+                countryMarkers.push(pinGroup);
+            }
+        }
+        
+        function updateMarkers() {
+            // Reconstruir todos os marcadores com o novo tipo
+            addCountryMarkers();
+        }
+        
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+        
+        function onMouseMove(event) {
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+        }
+        
+        function onMouseClick(event) {
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(countryMarkers);
+            
+            const infoPanel = document.getElementById('infoPanel');
+            
+            if (intersects.length > 0) {
+                const countryData = intersects[0].object.userData || 
+                                  intersects[0].object.parent.userData;
+                
+                document.getElementById('countryName').textContent = countryData.countryName;
+                document.getElementById('densityValue').textContent = getDensityText(countryData.density);
+                document.getElementById('densityValue').style.color = getColorHex(countryData.density);
+                document.getElementById('mainSectors').textContent = countryData.sectors;
+                document.getElementById('countryInfo').textContent = countryData.info;
+                
+                infoPanel.style.display = 'block';
+            } else {
+                infoPanel.style.display = 'none';
+            }
+        }
+        
+        function getDensityText(density) {
+            const levels = ["Muito Baixa", "Baixa", "Média", "Alta", "Muito Alta"];
+            return levels[density - 1] || "Desconhecida";
+        }
+        
+        function getColorHex(density) {
+            const colors = {
+                1: "#ff6b6b",
+                2: "#ffa726", 
+                3: "#ffee58",
+                4: "#9ccc65",
+                5: "#26c6da"
+            };
+            return colors[density] || "#cccccc";
+        }
+        
+        function toggleAutoRotate() {
+            autoRotate = !autoRotate;
+            controls.autoRotate = autoRotate;
+            document.getElementById('autoRotate').innerHTML = 
+                autoRotate ? '<span>⏸️</span> Parar Rotação' : '<span>▶️</span> Iniciar Rotação';
+        }
+        
+        function resetView() {
+            controls.reset();
+            camera.position.set(0, 0, 250);
+        }
+        
+        function toggleMarkers() {
+            markersVisible = !markersVisible;
+            document.getElementById('toggleMarkers').innerHTML = 
+                markersVisible ? '<span>🔍</span> Ocultar Marcadores' : '<span>🔍</span> Mostrar Marcadores';
+            
+            countryMarkers.forEach(marker => marker.visible = markersVisible);
+            pulseObjects.forEach(obj => obj.visible = markersVisible);
+        }
+        
+        function toggleAtmosphere() {
+            atmosphereVisible = !atmosphereVisible;
+            document.getElementById('toggleAtmosphere').innerHTML = 
+                atmosphereVisible ? '<span>🌎</span> Atmosfera: On' : '<span>🌎</span> Atmosfera: Off';
+            
+            if (atmosphereGlow) {
+                atmosphereGlow.visible = atmosphereVisible;
+            }
+        }
+        
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            // Atualizar controles
+            controls.update();
+            
+            // Animar pulsação dos anéis
+            pulseObjects.forEach(obj => {
+                if (obj.userData.pulseSpeed) {
+                    const scale = 1 + Math.sin(Date.now() * obj.userData.pulseSpeed) * 0.3;
+                    obj.scale.set(scale, scale, 1);
+                }
+            });
+            
+            // Renderizar cena
+            renderer.render(scene, camera);
+        }
+        
+        // Iniciar a aplicação
+        init();
+    </script>
+</body>
+</html>
